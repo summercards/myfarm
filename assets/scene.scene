@@ -565,6 +565,7 @@
     "moveSpeed": 5,
     "turnSmoothTime": 0.01,
     "faceMovement": true,
+    "enableJump": true,
     "_id": "9b3oa3uDRBQqxyce9PGG/3"
   },
   {
