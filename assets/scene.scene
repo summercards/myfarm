@@ -823,10 +823,10 @@
     "__prefab": null,
     "_group": 1,
     "_type": 1,
-    "_mass": 1,
+    "_mass": 70,
     "_allowSleep": true,
-    "_linearDamping": 0.1,
-    "_angularDamping": 0.1,
+    "_linearDamping": 0.2,
+    "_angularDamping": 1,
     "_useGravity": true,
     "_linearFactor": {
       "__type__": "cc.Vec3",
