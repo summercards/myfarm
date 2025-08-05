@@ -117,7 +117,7 @@ export class TPSCharacterController extends Component {
 
         /* 5. 转身朝向移动方向 */
         if (this.faceMovement) {
-            const yaw = Math.atan2(this._moveDir.x, -this._moveDir.z) * 180 / Math.PI;
+            const yaw = Math.atan2(this._moveDir.x, this._moveDir.z) * 180 / Math.PI + 180;
             Quat.fromEuler(Q_TMP, 0, yaw, 0);
 
             if (this.turnSmoothTime <= 0) {

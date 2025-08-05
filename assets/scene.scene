@@ -189,7 +189,7 @@
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": 0.698,
+      "y": 0,
       "z": 0
     },
     "_lrot": {
@@ -202,7 +202,7 @@
     "_lscale": {
       "__type__": "cc.Vec3",
       "x": 1,
-      "y": 1.2,
+      "y": 1,
       "z": 1
     },
     "_mobility": 2,
@@ -246,9 +246,9 @@
     },
     "_lscale": {
       "__type__": "cc.Vec3",
-      "x": 1,
-      "y": 1,
-      "z": 1
+      "x": 0.3,
+      "y": 0.3,
+      "z": 0.3
     },
     "_mobility": 0,
     "_layer": 1073741824,
@@ -499,7 +499,7 @@
     "node": {
       "__id__": 5
     },
-    "_enabled": true,
+    "_enabled": false,
     "__prefab": null,
     "_materials": [
       {
@@ -563,7 +563,7 @@
       "__id__": 12
     },
     "moveSpeed": 5,
-    "turnSmoothTime": 0.08,
+    "turnSmoothTime": 0.01,
     "faceMovement": true,
     "_id": "9b3oa3uDRBQqxyce9PGG/3"
   },

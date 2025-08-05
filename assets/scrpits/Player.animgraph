@@ -215,10 +215,10 @@
     "endEventBinding": {
       "__id__": 18
     },
-    "duration": 0.12,
+    "duration": 0.08,
     "relativeDuration": false,
-    "exitConditionEnabled": true,
-    "_exitCondition": 1
+    "exitConditionEnabled": false,
+    "_exitCondition": 0.2
   },
   {
     "__type__": "cc.animation.BinaryCondition",
@@ -275,10 +275,10 @@
     "endEventBinding": {
       "__id__": 24
     },
-    "duration": 0.12,
+    "duration": 0.08,
     "relativeDuration": false,
-    "exitConditionEnabled": true,
-    "_exitCondition": 1
+    "exitConditionEnabled": false,
+    "_exitCondition": 0.2
   },
   {
     "__type__": "cc.animation.BinaryCondition",
