@@ -563,8 +563,10 @@
       "__id__": 12
     },
     "moveSpeed": 5,
-    "turnSmoothTime": 0.01,
+    "turnSmoothTime": 0.15,
     "faceMovement": true,
+    "jumpSpeed": 10,
+    "gravity": 30,
     "enableJump": true,
     "_id": "9b3oa3uDRBQqxyce9PGG/3"
   },
