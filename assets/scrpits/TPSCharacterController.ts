@@ -198,6 +198,12 @@ export class TPSCharacterController extends Component {
         item.node.setParent(this.hand);
         item.node.setPosition(Vec3.ZERO);
         item.node.setRotationFromEuler(0, 0, 0);
+        console.log('[pick->bag]', item.itemId);
+// 写入背包（JS 友好写法）
+const bridgeComp = this.node.getComponent('PickupToInventory');
+if (bridgeComp && typeof bridgeComp['push'] === 'function') {
+  bridgeComp['push'](item.itemId, 1);
+}
     }
     private dropItem() {
         if (!this._held || !this.hand) return;
@@ -213,6 +219,12 @@ export class TPSCharacterController extends Component {
         this._held.node.setWorldPosition(TMP);
         this._held.node.setRotationFromEuler(0, 0, 0);
         this._held.picked = false;
+            // ★ 新增：同步扣背包
+// 丢弃后从背包扣 1（JS 友好写法）
+const bridgeComp = this.node.getComponent('PickupToInventory');
+if (bridgeComp && bridgeComp['inventory'] && typeof bridgeComp['inventory']['removeItem'] === 'function') {
+  bridgeComp['inventory']['removeItem'](this._held.itemId, 1);
+}
 
         this._held = null;
     }
