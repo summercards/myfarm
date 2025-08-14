@@ -10,46 +10,41 @@ import {
     Label,
     Sprite,
     SpriteFrame,
-    Size,
+    SpriteAtlas,
 } from 'cc';
 
 const { ccclass, property } = _decorator;
 
+type Slot = { id: string; count: number };
+
 /**
- * InventoryPanelView（合并版）
- * - 固定渲染在 UI_2D 画布上（顶左角 Widget），背景与格子用 Graphics 画，必然可见
- * - 从玩家身上的 PickupToInventory（invBridgeNode）与 GameRoot 的 ItemDatabase（itemDBNode）读取数据
- * - 显示：图标 +（可选）名称 + 数量（数量=1时也显示/可改）
+ * InventoryPanelView（稳健版）
+ * - 固定渲染在 UI_2D 画布上（左上角）
+ * - 从 invBridgeNode(PickupToInventory) 与 itemDBNode(ItemDatabase) 读取数据
+ * - 名称/图标读取做了兼容（避免出现 apple<ItemData>）
  */
 @ccclass('InventoryPanelView')
 export class InventoryPanelView extends Component {
-    /** 行 */
-    @property rows: number = 4;
-    /** 列 */
-    @property cols: number = 5;
-    /** 单元格像素 */
-    @property cellSize: number = 84;
-    /** 间距 */
-    @property gap: number = 10;
+    /** 行/列/尺寸/间距 */
+    @property rows = 4;
+    @property cols = 5;
+    @property cellSize = 84;
+    @property gap = 10;
 
-    /** 面板背景色（半透明） */
+    /** 颜色 */
     @property(Color) panelBgColor: Color = new Color(0, 0, 0, 120);
-    /** 格子底色 */
     @property(Color) cellBgColor: Color = new Color(40, 40, 40, 180);
-    /** 物品名颜色 */
     @property(Color) nameColor: Color = new Color(220, 220, 220, 255);
-    /** 数量颜色 */
     @property(Color) countColor: Color = new Color(255, 255, 255, 255);
 
-    /** （可选）是否显示物品名 */
-    @property showName: boolean = true;
-    /** 数量==1时是否也显示 */
-    @property showOneCount: boolean = true;
+    /** 是否显示物品名、数量=1是否也显示 */
+    @property showName = true;
+    @property showOneCount = true;
 
-    /** GameRoot（挂 ItemDatabase） */
-    @property(Node) itemDBNode: Node | null = null;
-    /** 玩家（挂 PickupToInventory） */
-    @property(Node) invBridgeNode: Node | null = null;
+    /** 资源与桥接 */
+    @property(Node) itemDBNode: Node | null = null;      // GameRoot（挂 ItemDatabase）
+    @property(Node) invBridgeNode: Node | null = null;   // 玩家（挂 PickupToInventory）
+    @property(SpriteAtlas) iconAtlas: SpriteAtlas | null = null; // 可选：如果 DB 的 icon 是字符串，则用此图集取帧
 
     private _grid!: Node;
     private _cells: Array<{
@@ -59,19 +54,19 @@ export class InventoryPanelView extends Component {
         count: Label;
     }> = [];
 
-    private _itemDB: any = null;     // ItemDatabase
-    private _bridge: any = null;     // PickupToInventory
+    private _itemDB: any = null;  // ItemDatabase（不同项目结构不同，这里做兼容读取）
+    private _bridge: any = null;  // PickupToInventory
 
     onLoad() {
-        // 1) 确保在 UI 图层
+        // 在 UI_2D 图层
         this.node.layer = Layers.Enum.UI_2D;
 
-        // 2) 计算面板整体宽高（四周 16px 内边距）
+        // 面板尺寸（含内边距）
         const pad = 16;
         const w = this.cols * this.cellSize + (this.cols - 1) * this.gap + pad * 2;
         const h = this.rows * this.cellSize + (this.rows - 1) * this.gap + pad * 2;
 
-        // 3) UITransform + Widget，固定到屏幕左上角
+        // UITransform + Widget（左上角）
         const ui = this.node.getComponent(UITransform) ?? this.node.addComponent(UITransform);
         ui.setContentSize(w, h);
 
@@ -82,21 +77,20 @@ export class InventoryPanelView extends Component {
         widget.left = 30;
         widget.alignMode = Widget.AlignMode.ON_WINDOW_RESIZE;
 
-        // 4) 面板背景（圆角矩形）
+        // 背景
         const bg = new Node('PanelBG');
         bg.layer = Layers.Enum.UI_2D;
         const bgUI = bg.addComponent(UITransform);
-        bgUI.setAnchorPoint(0, 1); // 左上角为锚点
+        bgUI.setAnchorPoint(0, 1);
         bgUI.setContentSize(w, h);
         const g = bg.addComponent(Graphics);
         g.fillColor = this.panelBgColor;
         g.roundRect(0, 0, w, h, 12);
         g.fill();
-        // 父锚点 0.5,0.5 -> 把左上对齐到父节点中心
         bg.setPosition(-w / 2, h / 2);
         this.node.addChild(bg);
 
-        // 5) 网格根节点（放格子）
+        // 网格
         this._grid = new Node('Grid');
         this._grid.layer = Layers.Enum.UI_2D;
         const gridUI = this._grid.addComponent(UITransform);
@@ -105,26 +99,24 @@ export class InventoryPanelView extends Component {
         this._grid.setPosition(-w / 2 + pad, h / 2 - pad);
         this.node.addChild(this._grid);
 
-        // 6) 生成格子
         this._buildGrid();
 
-        // 7) 尝试绑定 DB / Bridge
+        // 绑定 DB / Bridge
         if (this.itemDBNode) this._itemDB = this.itemDBNode.getComponent('ItemDatabase');
         if (this.invBridgeNode) this._bridge = this.invBridgeNode.getComponent('PickupToInventory');
 
-        // 8) 定时刷新（简单稳定）
+        // 立即刷新一次 + 定时刷新
+        this.refresh();
         this.schedule(this.refresh, 0.2);
     }
 
     private _buildGrid() {
-        // 清空旧格子
         for (const c of this._cells) c.root.destroy();
         this._cells.length = 0;
 
         for (let r = 0; r < this.rows; r++) {
             for (let c = 0; c < this.cols; c++) {
                 const idx = r * this.cols + c;
-
                 const cell = new Node(`Cell_${idx}`);
                 cell.layer = Layers.Enum.UI_2D;
 
@@ -132,7 +124,7 @@ export class InventoryPanelView extends Component {
                 cui.setAnchorPoint(0.5, 0.5);
                 cui.setContentSize(this.cellSize, this.cellSize);
 
-                // 底色（Graphics 画圆角矩形）
+                // 背板
                 const cg = cell.addComponent(Graphics);
                 cg.fillColor = this.cellBgColor;
                 const half = this.cellSize / 2;
@@ -148,7 +140,7 @@ export class InventoryPanelView extends Component {
                 iconNode.setPosition(0, 8, 0);
                 cell.addChild(iconNode);
 
-                // 名称（可选，底部居中）
+                // 名称
                 let nameLb: Label | undefined;
                 if (this.showName) {
                     const nameNode = new Node('Name');
@@ -166,7 +158,7 @@ export class InventoryPanelView extends Component {
                     cell.addChild(nameNode);
                 }
 
-                // 数量（右下角）
+                // 数量（右下）
                 const cntNode = new Node('Count');
                 cntNode.layer = Layers.Enum.UI_2D;
                 const cntUI = cntNode.addComponent(UITransform);
@@ -192,10 +184,66 @@ export class InventoryPanelView extends Component {
         }
     }
 
-    /** 拉取玩家背包并刷新格子 */
+    /** 统一从 DB 里按 id 找条目（兼容多种组织方式） */
+    private _getItemData(id: string): any {
+        const db = this._itemDB;
+        if (!db) return null;
+
+        try {
+            if (typeof db.get === 'function') {
+                const v = db.get(id);
+                if (v) return v;
+            }
+        } catch { }
+
+        if (db.byId && db.byId[id]) return db.byId[id];
+        if (db.map && db.map[id]) return db.map[id];
+
+        const arr = db.items || db.list || db.data;
+        if (Array.isArray(arr)) {
+            const v = arr.find((x: any) => x && x.id === id);
+            if (v) return v;
+        }
+        return null;
+    }
+
+    /** 从 data 中提取名字（string），否则回退为 id */
+    private _getDisplayName(data: any, idFallback: string): string {
+        if (!data) return idFallback;
+        const candidates = [data.displayName, data.name, data.title, data.label];
+        for (const s of candidates) {
+            if (typeof s === 'string' && s.length > 0) return s;
+        }
+        return idFallback;
+    }
+
+    /** 从 data 中提取图标帧：SpriteFrame 或字符串名 + 图集 */
+    private _getIconFrame(data: any): SpriteFrame | null {
+        if (!data) return null;
+
+        const sfCandidates = [data.icon, data.iconFrame, data.spriteFrame];
+        for (const v of sfCandidates) {
+            if (v instanceof SpriteFrame) return v;
+        }
+
+        // icon 是字符串名，且有图集
+        const nameCandidates = [data.icon, data.iconName];
+        for (const n of nameCandidates) {
+            if (typeof n === 'string' && n && this.iconAtlas) {
+                const f = this.iconAtlas.getSpriteFrame(n);
+                if (f) return f;
+            }
+        }
+        return null;
+    }
+
+    /** 刷新格子显示 */
     refresh() {
-        // 没绑定就清空显示（保持 UI 可见）
-        if (!this._bridge || !this._itemDB) {
+        const bridge = this._bridge;
+        const db = this._itemDB;
+
+        // 未绑定：清空显示
+        if (!bridge || !db) {
             for (const c of this._cells) {
                 c.icon.spriteFrame = null as any;
                 c.icon.node.active = false;
@@ -205,20 +253,26 @@ export class InventoryPanelView extends Component {
             return;
         }
 
-        const inv = this._bridge.inventory;
+        const inv = bridge.inventory;
         if (!inv || !inv.slots) return;
 
-        const capacity = Math.min(this._cells.length, inv.slots.length);
-        for (let i = 0; i < capacity; i++) {
-            const slot = inv.slots[i];
-            const cell = this._cells[i];
-            if (slot) {
-                const data = this._itemDB.get(slot.id); // 期望 data: { name?: string, icon?: SpriteFrame }
-                cell.icon.spriteFrame = (data && data.icon) ? (data.icon as SpriteFrame) : null;
-                cell.icon.node.active = !!cell.icon.spriteFrame;
+        const slots: Array<Slot | null> = inv.slots as any;
+        const capacity = Math.min(this._cells.length, slots.length);
 
-                if (cell.name) cell.name.string = (data && data.name) ? data.name : slot.id;
-                cell.count.string = this.showOneCount ? String(slot.count) : (slot.count > 1 ? String(slot.count) : '');
+        for (let i = 0; i < capacity; i++) {
+            const slot = slots[i];
+            const cell = this._cells[i];
+
+            if (slot && slot.id) {
+                const data = this._getItemData(slot.id);
+                const frame = this._getIconFrame(data);
+                cell.icon.spriteFrame = frame;
+                cell.icon.node.active = !!frame;
+
+                if (cell.name) cell.name.string = this._getDisplayName(data, slot.id);
+                cell.count.string = this.showOneCount
+                    ? String(slot.count)
+                    : (slot.count > 1 ? String(slot.count) : '');
             } else {
                 cell.icon.spriteFrame = null as any;
                 cell.icon.node.active = false;
@@ -226,7 +280,8 @@ export class InventoryPanelView extends Component {
                 cell.count.string = '';
             }
         }
-        // 超出容量的格子清空
+
+        // 多余格子清空
         for (let i = capacity; i < this._cells.length; i++) {
             const cell = this._cells[i];
             cell.icon.spriteFrame = null as any;
