@@ -193,12 +193,23 @@ export class TPSCharacterController extends Component {
     private pickItem(item: ItemPickup) {
         if (!this.hand) return;
         item.picked = true;
-        this._held = item;
 
+        // 先把 hand 下面除了这次拾取的节点以外的所有孩子都隐藏（不销毁）
+        for (const c of this.hand.children) {
+            if (c !== item.node) c.active = false;
+        }
+
+        // 再把当前拾取的物体挂到 hand，并确保它“唯一可见”
         item.node.setParent(this.hand);
         item.node.setPosition(Vec3.ZERO);
         item.node.setRotationFromEuler(0, 0, 0);
+        item.node.active = true;
+
+        // 最后记录当前手持
+        this._held = item;
+
         console.log('[pick->bag]', item.itemId);
+
 // 写入背包（JS 友好写法）
 const bridgeComp = this.node.getComponent('PickupToInventory');
 if (bridgeComp && typeof bridgeComp['push'] === 'function') {
