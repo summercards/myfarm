@@ -10,6 +10,7 @@ import {
     RigidBody, PhysicsSystem, geometry, Prefab, instantiate
 } from 'cc';
 import { ItemPickup } from './ItemPickup';
+import { PlantingSystem } from './farming/PlantingSystem';
 const { ccclass, property } = _decorator;
 
 /* === 复用常量 === */
@@ -92,6 +93,10 @@ export class TPSCharacterController extends Component {
             case KeyCode.KEY_S: case KeyCode.ARROW_DOWN: this._press.s = true; break;
             case KeyCode.KEY_A: case KeyCode.ARROW_LEFT: this._press.a = true; break;
             case KeyCode.KEY_D: case KeyCode.ARROW_RIGHT: this._press.d = true; break;
+
+            case KeyCode.KEY_F:       // 种植（手上当前物品）
+                this.plantHeld();
+                break;
 
             case KeyCode.KEY_E:       // 拾取
                 if (this._candidate) { this.pickItem(this._candidate); this._candidate = null; }
@@ -294,6 +299,44 @@ export class TPSCharacterController extends Component {
         if (held) this._held = held;
 
         return true;
+    }
+
+
+    /** 把手上当前物品种下去：成功则扣背包并清理/保持手上显示 */
+    private plantHeld() {
+        if (!this._held) return;
+
+        const id = this._held.itemId;
+        const planter = this.getComponent(PlantingSystem);
+        if (!planter) { console.warn('[plant] 未挂 PlantingSystem 组件'); return; }
+
+        // 尝试种植（只影响场景；是否能种由系统判断）
+        const ok = planter.tryPlant(id);
+        if (!ok) return;
+
+        // 从背包扣 1
+        const bridgeComp: any = this.node.getComponent('PickupToInventory');
+        if (bridgeComp && bridgeComp['inventory'] && typeof bridgeComp['inventory']['removeItem'] === 'function') {
+            bridgeComp['inventory']['removeItem'](id, 1);
+        }
+
+        // 查看背包是否还有该物品；没有则清空手上显示
+        let remain = 0;
+        const inv = bridgeComp?.['inventory'];
+        if (inv) {
+            if (typeof inv['getItemCount'] === 'function') remain = inv['getItemCount'](id);
+            else if (typeof inv['countOf'] === 'function') remain = inv['countOf'](id);
+        }
+
+        if (remain <= 0) {
+            // 清空手上
+            if (this.hand) {
+                for (const c of this.hand.children) c.active = false;
+            }
+            this._held = null;
+        } else {
+            // 还有库存：保持当前显示不变（不需要额外处理）
+        }
     }
 
 
