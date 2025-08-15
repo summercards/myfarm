@@ -106,6 +106,12 @@ export class TPSCharacterController extends Component {
                     this.animCtrl?.setValue('isJump', true);
                 }
                 break;
+            case KeyCode.BRACKET_LEFT:   // [  向左切换一种物品
+                this.cycleHeld(-1);
+                break;
+            case KeyCode.BRACKET_RIGHT:  // ]  向右切换一种物品
+                this.cycleHeld(1);
+                break;
         }
     }
     private onKeyUp(e: EventKeyboard) {
@@ -188,6 +194,108 @@ export class TPSCharacterController extends Component {
             true
         );
     }
+
+    /** 在“背包里当前拥有的物品类型”之间循环切换（delta=±1） */
+    private cycleHeld(delta: number) {
+        const bridgeComp: any = this.node.getComponent('PickupToInventory');
+        if (!bridgeComp || !bridgeComp['inventory']) return;
+
+        const inv = bridgeComp['inventory'];
+        const ids: string[] = [];
+
+        // 1) 收集背包里 count>0 的物品 id（去重）
+        if (Array.isArray(inv['slots'])) {
+            for (const s of inv['slots']) {
+                if (s && s.count > 0 && ids.indexOf(s.id) === -1) ids.push(s.id);
+            }
+        } else if (typeof inv['getAllItems'] === 'function') {
+            const all = inv['getAllItems'](); // 预期 [{id, count}, ...]
+            if (Array.isArray(all)) {
+                for (const it of all) {
+                    if (it && it.count > 0 && ids.indexOf(it.id) === -1) ids.push(it.id);
+                }
+            }
+        } else if (typeof inv['getItemCount'] === 'function' && typeof bridgeComp['itemDB']?.['allIds'] === 'function') {
+            // 少见：如果有全量 id 列表
+            for (const id of bridgeComp['itemDB']['allIds']()) {
+                if (inv['getItemCount'](id) > 0) ids.push(id);
+            }
+        }
+
+        if (ids.length === 0) {
+            // 背包空了 → 清空手上
+            if (this.hand) for (const c of this.hand.children) c.active = false;
+            this._held = null;
+            return;
+        }
+
+        // 2) 当前 id 的下一个/上一个
+        const curId = this._held ? this._held.itemId : null;
+        let idx = curId ? ids.indexOf(curId) : -1;
+        idx = (idx + delta + ids.length) % ids.length;
+
+        // 3) 装备该 id 到手上（不改背包数量）
+        this.equipFromInventoryById(ids[idx]);
+    }
+
+
+    /** 按物品 id 从背包“显示在手上”（不改背包数量） */
+    private equipFromInventoryById(id: string): boolean {
+        if (!id || !this.hand) return false;
+
+        // 1) 取背包引用
+        const bridgeComp: any = this.node.getComponent('PickupToInventory');
+        if (!bridgeComp || !bridgeComp['inventory']) return false;
+        const inv = bridgeComp['inventory'];
+
+        // 2) 背包里是否还有该 id？
+        let count = 0;
+        if (typeof inv['getItemCount'] === 'function') {
+            count = inv['getItemCount'](id);
+        } else if (typeof inv['countOf'] === 'function') {
+            count = inv['countOf'](id);
+        } else if (Array.isArray(inv['slots'])) {
+            // 兜底：从 slots 统计
+            for (const s of inv['slots']) if (s && s.id === id) count += s.count;
+        }
+        if (count <= 0) return false;
+
+        // 3) 优先复用 hand 里已有的同 id 节点，否则实例化一个
+        let target: Node | null = null;
+        for (const c of this.hand.children) {
+            const p = c.getComponent(ItemPickup);
+            if (p && p.itemId === id) { target = c; break; }
+        }
+
+
+
+        if (!target) {
+            // 需要实例化展示体
+            const db = bridgeComp['itemDB'];
+            if (!(db && typeof db['get'] === 'function')) return false;
+            const data = db['get'](id);
+            const prefab: Prefab | null = data && data['worldModel'] ? data['worldModel'] : null;
+            if (!prefab) return false;
+
+            target = instantiate(prefab);
+            const p = target.getComponent(ItemPickup) || target.addComponent(ItemPickup);
+            p.itemId = id;
+            p.picked = true;
+
+            target.setParent(this.hand);
+            target.setPosition(Vec3.ZERO);
+            target.setRotationFromEuler(0, 0, 0);
+            target.active = true;
+        }
+
+        // 4) 只显示它一个
+        for (const c of this.hand.children) c.active = (c === target);
+        const held = target.getComponent(ItemPickup);
+        if (held) this._held = held;
+
+        return true;
+    }
+
 
     /* ---------- 拾取 / 丢弃 ---------- */
     private pickItem(item: ItemPickup) {
