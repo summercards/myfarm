@@ -7,7 +7,7 @@ import {
     _decorator, Component, Node, Vec3, Quat,
     input, Input, EventKeyboard, KeyCode, find,
     animation, Collider, ITriggerEvent,
-    RigidBody, PhysicsSystem, geometry
+    RigidBody, PhysicsSystem, geometry, Prefab, instantiate
 } from 'cc';
 import { ItemPickup } from './ItemPickup';
 const { ccclass, property } = _decorator;
@@ -230,13 +230,77 @@ if (bridgeComp && typeof bridgeComp['push'] === 'function') {
         this._held.node.setWorldPosition(TMP);
         this._held.node.setRotationFromEuler(0, 0, 0);
         this._held.picked = false;
+
+        const droppedId = this._held.itemId;   // ← 新增：先记住丢弃的物品 id
             // ★ 新增：同步扣背包
 // 丢弃后从背包扣 1（JS 友好写法）
 const bridgeComp = this.node.getComponent('PickupToInventory');
 if (bridgeComp && bridgeComp['inventory'] && typeof bridgeComp['inventory']['removeItem'] === 'function') {
-  bridgeComp['inventory']['removeItem'](this._held.itemId, 1);
+    bridgeComp['inventory']['removeItem'](droppedId, 1);
 }
 
         this._held = null;
+
+        // === 自动补位：如果背包里还有同样的物品，手上补一个同款 ===
+        if (bridgeComp && bridgeComp['inventory']) {
+            const id = droppedId;
+            // 注意：上面刚把 this._held 置空了，所以先取个局部 id
+            const inv = bridgeComp['inventory'];
+
+            // 统计剩余数量（有些项目里是 getItemCount，也可能是 countOf；这里做兼容）
+            let remain = 0;
+            if (typeof inv['getItemCount'] === 'function') {
+                remain = inv['getItemCount'](id);
+            } else if (typeof inv['countOf'] === 'function') {
+                remain = inv['countOf'](id);
+            }
+
+            if (id && remain > 0 && this.hand) {
+                // ① 先尝试：hand 里是否有同 id 的隐藏节点？有就直接激活复用
+                let reused: Node | null = null;
+                for (const c of this.hand.children) {
+                    const p = c.getComponent(ItemPickup);
+                    if (p && p.itemId === id && c.active === false) {
+                        reused = c;
+                        break;
+                    }
+                }
+                if (reused) {
+                    // 只显示它一个
+                    for (const c of this.hand.children) {
+                        c.active = (c === reused);
+                    }
+                    const p = reused.getComponent(ItemPickup);
+                    if (p) { p.picked = true; }
+                    this._held = p || null;
+                } else {
+                    // ② 没有可复用节点：尝试从 ItemDatabase 实例化一个
+                    const db = bridgeComp['itemDB'];              // 你的 PickupToInventory 通常有 itemDB 引用
+                    if (db && typeof db['get'] === 'function') {
+                        const data = db['get'](id);
+                        const prefab: Prefab | null = data && data['worldModel'] ? data['worldModel'] : null;
+                        if (prefab) {
+                            const node = instantiate(prefab);
+                            // 填好 ItemPickup 属性，确保一致
+                            const p = node.getComponent(ItemPickup) || node.addComponent(ItemPickup);
+                            p.itemId = id;
+                            p.picked = true;
+
+                            node.setParent(this.hand);
+                            node.setPosition(Vec3.ZERO);
+                            node.setRotationFromEuler(0, 0, 0);
+                            node.active = true;
+
+                            // 只显示它一个
+                            for (const c of this.hand.children) {
+                                if (c !== node) c.active = false;
+                            }
+                            this._held = p;
+                        }
+                    }
+                }
+            }
+        }
+
     }
 }
