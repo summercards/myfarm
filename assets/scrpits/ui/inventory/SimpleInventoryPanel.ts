@@ -1,126 +1,175 @@
+// scrpits/ui/inventory/SimpleInventoryPanel.ts
 import {
-  _decorator, Component, Node, UITransform, Graphics, Color,
-  Label, Vec3, Size, Layers, find, Canvas
+    _decorator, Component, Node, UITransform, Graphics, Color,
+    Label, Sprite, SpriteFrame, Size, Layers, EventTouch, EventMouse
 } from 'cc';
+import { PickupToInventory } from '../../items/adapters/PickupToInventory';
+import { ItemDatabase } from '../../items/ItemDatabase';
 const { ccclass, property } = _decorator;
 
 @ccclass('SimpleInventoryPanel')
 export class SimpleInventoryPanel extends Component {
-  @property rows = 4;
-  @property cols = 5;
-  @property cellSize = 84;
-  @property gap = 10;
+    @property rows = 4;
+    @property cols = 5;
+    @property cellSize = 84;
+    @property gap = 10;
 
-  @property(Color) panelBg = new Color(0, 0, 0, 150);
-  @property(Color) cellBg  = new Color(40, 40, 40, 200);
-  @property(Color) textCol = new Color(230, 230, 230, 255);
+    @property(Color) panelBg = new Color(0, 0, 0, 150);
+    @property(Color) cellBg = new Color(40, 40, 40, 200);
+    @property(Color) cellHl = new Color(255, 170, 0, 255); // 高亮描边色（橙色更明显）
+    @property(Color) textCol = new Color(230, 230, 230, 255);
 
-  onLoad() {
-    // 0) 找 Canvas，并把自己“搬运”到 Canvas 下面
-    const canvasNode = find('Canvas');
-    if (!canvasNode) {
-      console.error('[SimpleInventoryPanel] 找不到 Canvas 节点！');
-      return;
-    }
-    // 如果不在 Canvas 下 -> 重新挂接
-    if (this.node.parent !== canvasNode) {
-      this.node.removeFromParent();
-      canvasNode.addChild(this.node);
-    }
+    @property(Node) invHolder: Node | null = null;  // 玩家（含 PickupToInventory）
+    @property(Node) dbNode: Node | null = null;     // GameRoot（含 ItemDatabase）
+    @property title = '背包';
+    @property refreshInterval = 0.15;
 
-    // 1) 强制 UI 层 + 排到最顶层
-    this.node.layer = Layers.Enum.UI_2D;
-    this.node.setSiblingIndex(this.node.parent!.children.length - 1);
+    private _bridge: PickupToInventory | null = null;
+    private _db: ItemDatabase | null = null;
+    private _cells: Node[] = [];
+    private _time = 0;
 
-    // 2) 重置变换（避免被 3D 旋转/缩放影响）
-    this.node.setPosition(0, 0, 0);
-    this.node.setScale(1, 1, 1);
-    this.node.setRotationFromEuler(0, 0, 0);
+    onLoad() {
+        const ui = this.node.getComponent(UITransform) || this.node.addComponent(UITransform);
+        if (ui.contentSize.width < 10 || ui.contentSize.height < 10) {
+            ui.setContentSize(this.cols * this.cellSize + (this.cols - 1) * this.gap + 28,
+                this.rows * this.cellSize + (this.rows - 1) * this.gap + 72);
+        }
 
-    // 3) 确保 Canvas 组件和 UI 相机正常（不是必须，但能避免奇怪配置）
-    const canvasComp = canvasNode.getComponent(Canvas);
-    if (!canvasComp) {
-      canvasNode.addComponent(Canvas);
+        this._bridge = this.invHolder?.getComponent(PickupToInventory) || null;
+        this._db = this.dbNode?.getComponent(ItemDatabase) || null;
+
+        this.buildBackground();
+        this.buildGrid();
+        this.refresh();
     }
 
-    // 4) 确保有 UITransform，并给明确尺寸
-    const ui = this.node.getComponent(UITransform) || this.node.addComponent(UITransform);
-    ui.setContentSize(new Size(640, 420));
-    ui.anchorPoint.set(0.5, 0.5); // 居中
-
-    // 5) 延后一帧绘制，等一切就绪
-    this.scheduleOnce(this.build, 0);
-  }
-
-  private build = () => {
-    const pad = 16;
-    const w = this.cols * this.cellSize + (this.cols - 1) * this.gap + pad * 2;
-    const h = this.rows * this.cellSize + (this.rows - 1) * this.gap + pad * 2;
-
-    // 背景面板
-    let bg = this.node.getChildByName('PanelBG');
-    if (!bg) {
-      bg = new Node('PanelBG');
-      this.node.addChild(bg);
-      bg.addComponent(UITransform);
-      bg.addComponent(Graphics);
-    }
-    const g = bg.getComponent(Graphics)!;
-    g.clear();
-    g.fillColor = this.panelBg;
-    g.roundRect(-w / 2, -h / 2, w, h, 10);
-    g.fill();
-
-    // 中央诊断标题（一定能看到）
-    let title = this.node.getChildByName('DebugTitle');
-    if (!title) {
-      title = new Node('DebugTitle');
-      const lb = title.addComponent(Label);
-      lb.string = 'INVENTORY UI';
-      lb.fontSize = 32;
-      lb.lineHeight = 36;
-      lb.color = this.textCol;
-      this.node.addChild(title);
-    }
-    title!.setPosition(0, h / 2 - 28, 0);
-
-    // 清理旧格子
-    for (const child of [...this.node.children]) {
-      if (child.name.startsWith('Cell_')) child.destroy();
+    update(dt: number) {
+        this._time += dt;
+        if (this._time >= this.refreshInterval) {
+            this._time = 0;
+            this.refresh();
+        }
     }
 
-    // 逐格绘制（不依赖 Layout）
-    const startX = - (this.cols * this.cellSize + (this.cols - 1) * this.gap) / 2;
-    const startY =   (this.rows * this.cellSize + (this.rows - 1) * this.gap) / 2;
+    private buildBackground() {
+        const titleNode = new Node('Title');
+        titleNode.layer = Layers.Enum.UI_2D;
+        const tLabel = titleNode.addComponent(Label);
+        tLabel.string = this.title;
+        tLabel.color = this.textCol;
+        tLabel.fontSize = 20;
+        this.node.addChild(titleNode);
 
-    let idx = 0;
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        const cell = new Node(`Cell_${idx}`);
-        this.node.addChild(cell);
+        const ui = this.node.getComponent(UITransform)!;
+        titleNode.setPosition(0, ui.contentSize.height / 2 - 22);
 
-        const cg = cell.addComponent(Graphics);
-        cg.fillColor = this.cellBg;
-        cg.clear();
-        cg.roundRect(-this.cellSize / 2, -this.cellSize / 2, this.cellSize, this.cellSize, 8);
-        cg.fill();
-
-        const labelNode = new Node('Index');
-        const lb = labelNode.addComponent(Label);
-        lb.color = this.textCol;
-        lb.fontSize = 16;
-        lb.string = `${idx}`;
-        labelNode.setPosition(new Vec3(0, 0, 0));
-        cell.addChild(labelNode);
-
-        const x = startX + c * (this.cellSize + this.gap) + this.cellSize / 2;
-        const y = startY - r * (this.cellSize + this.gap) - this.cellSize / 2;
-        cell.setPosition(new Vec3(x, y, 0));
-
-        idx++;
-      }
+        const bg = new Node('Bg');
+        bg.layer = Layers.Enum.UI_2D;
+        const g = bg.addComponent(Graphics);
+        const w = ui.contentSize.width, h = ui.contentSize.height;
+        g.fillColor = this.panelBg;
+        g.roundRect(-w / 2, -h / 2, w, h, 12);
+        g.fill();
+        this.node.insertChild(bg, 0);
     }
 
-    console.log('[SimpleInventoryPanel] ready at Canvas center. layer=UI_2D, size=', this.rows, 'x', this.cols);
-  }
+    private buildGrid() {
+        for (const n of this._cells) n.destroy();
+        this._cells.length = 0;
+
+        const root = new Node('Grid');
+        this.node.addChild(root);
+
+        const ui = this.node.getComponent(UITransform)!;
+        const totalW = this.cols * this.cellSize + (this.cols - 1) * this.gap;
+        const totalH = this.rows * this.cellSize + (this.rows - 1) * this.gap;
+        const startX = -totalW / 2;
+        const startY = totalH / 2;
+
+        let idx = 0;
+        for (let r = 0; r < this.rows; r++) {
+            for (let c = 0; c < this.cols; c++) {
+                const cell = new Node(`Cell_${idx}`);
+                cell.layer = Layers.Enum.UI_2D;
+                const uiC = cell.addComponent(UITransform);
+                uiC.setContentSize(new Size(this.cellSize, this.cellSize));
+                cell.setPosition(startX + c * (this.cellSize + this.gap) + this.cellSize / 2,
+                    startY - r * (this.cellSize + this.gap) - this.cellSize / 2);
+
+                // 底色
+                const g = cell.addComponent(Graphics);
+                g.fillColor = this.cellBg;
+                g.roundRect(-this.cellSize / 2, -this.cellSize / 2, this.cellSize, this.cellSize, 8);
+                g.fill();
+
+                // 图标
+                const iconNode = new Node('Icon');
+                const icon = iconNode.addComponent(Sprite);
+                cell.addChild(iconNode);
+
+                // 文本（显示数量或ID）
+                const txtNode = new Node('Text');
+                const label = txtNode.addComponent(Label);
+                label.color = this.textCol;
+                label.fontSize = 16;
+                txtNode.setPosition(0, -this.cellSize / 2 + 14);
+                cell.addChild(txtNode);
+
+                // 选中描边
+                const sel = new Node('Sel');
+                const gs = sel.addComponent(Graphics);
+                gs.lineWidth = 3;
+                gs.strokeColor = this.cellHl;
+                gs.roundRect(-this.cellSize / 2 + 2, -this.cellSize / 2 + 2, this.cellSize - 4, this.cellSize - 4, 8);
+                gs.stroke();
+                sel.active = false;
+                cell.addChild(sel);
+
+                // 点击切换（同时支持触摸与鼠标）
+                cell.on(Node.EventType.TOUCH_END, () => this.onCellClick(idx), this);
+                cell.on(Node.EventType.MOUSE_UP, () => this.onCellClick(idx), this);
+
+                this._cells.push(cell);
+                root.addChild(cell);
+                idx++;
+            }
+        }
+    }
+
+    private onCellClick(index: number) {
+        const inv = this._bridge?.inventory;
+        if (!inv) return;
+        const ok = inv.select(index);     // 非空格才会成功
+        if (!ok) inv.selectedIndex = -1;  // 点空格 = 取消选择
+        this.refresh();
+    }
+
+    private refresh() {
+        const inv = this._bridge?.inventory;
+        const db = this._db;
+        if (!inv || !db) return;
+
+        for (let i = 0; i < this._cells.length; i++) {
+            const cell = this._cells[i];
+            const icon = cell.getChildByName('Icon')?.getComponent(Sprite)!;
+            const text = cell.getChildByName('Text')?.getComponent(Label)!;
+            const sel = cell.getChildByName('Sel')!;
+
+            const stack = inv.slots[i];
+            if (stack) {
+                const data: any = db.get(stack.id);
+                const sf: SpriteFrame | null | undefined = data?.icon;
+                const displayName: string = data?.displayName || stack.id;
+                icon.spriteFrame = sf || null;
+                icon.node.active = !!sf;
+                text.string = sf ? `${stack.count}` : `${displayName} ${stack.count}`;
+            } else {
+                icon.spriteFrame = null;
+                icon.node.active = false;
+                text.string = '';
+            }
+            sel.active = (i === inv.selectedIndex);
+        }
+    }
 }
