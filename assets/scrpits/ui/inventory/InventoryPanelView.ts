@@ -13,6 +13,8 @@ import {
     SpriteAtlas,
 } from 'cc';
 
+import { ItemPickup } from '../../ItemPickup';
+
 const { ccclass, property } = _decorator;
 
 type Slot = { id: string; count: number };
@@ -36,6 +38,11 @@ export class InventoryPanelView extends Component {
     @property(Color) cellBgColor: Color = new Color(40, 40, 40, 180);
     @property(Color) nameColor: Color = new Color(220, 220, 220, 255);
     @property(Color) countColor: Color = new Color(255, 255, 255, 255);
+    @property(Color) selectedBorderColor: Color = new Color(255, 0, 0, 255); // 选中红框颜色
+    @property selectedBorderWidth = 3;                                        // 红框线宽（像素）
+
+    private _selIdx: number = -1;   // 当前高亮的格子下标（-1 表示不高亮）
+
 
     /** 是否显示物品名、数量=1是否也显示 */
     @property showName = true;
@@ -237,6 +244,65 @@ export class InventoryPanelView extends Component {
         return null;
     }
 
+    /** 从玩家节点推断“手上拿着”的物品 id */
+    private _getHeldItemId(): string | null {
+        if (!this.invBridgeNode) return null;
+        const ctrl: any = this.invBridgeNode.getComponent('TPSCharacterController');
+        if (!ctrl) return null;
+
+        // ① 优先从 hand 的激活子节点取 ItemPickup
+        const hand: Node | null = ctrl['hand'] || null;
+        if (hand) {
+            for (const c of hand.children) {
+                if (c.activeInHierarchy) {
+                    const p = c.getComponent(ItemPickup);
+                    if (p && typeof p.itemId === 'string') return p.itemId;
+                }
+            }
+        }
+        // ② 兜底：如果控制器里有 _held，也尝试读取
+        if (ctrl['_held'] && typeof ctrl['_held']['itemId'] === 'string') {
+            return ctrl['_held']['itemId'];
+        }
+        return null;
+    }
+
+    /** 在指定格子画/切换“红框”；index<0 则隐藏 */
+    private _updateSelection(index: number) {
+        // 隐藏旧高亮
+        if (this._selIdx >= 0 && this._selIdx < this._cells.length) {
+            const prevCell = this._cells[this._selIdx].root;
+            const prev = prevCell.getChildByName('Sel');
+            if (prev) prev.active = false;
+        }
+        this._selIdx = index;
+
+        if (index < 0 || index >= this._cells.length) return;
+
+        const cell = this._cells[index].root;
+        let sel = cell.getChildByName('Sel');
+        if (!sel) {
+            sel = new Node('Sel');
+            sel.layer = Layers.Enum.UI_2D;
+            sel.addComponent(UITransform).setContentSize(this.cellSize, this.cellSize);
+            sel.addComponent(Graphics);
+            cell.addChild(sel);
+        }
+        const g = sel.getComponent(Graphics)!;
+        g.clear();
+        g.lineWidth = Math.max(1, this.selectedBorderWidth);
+        g.strokeColor = this.selectedBorderColor;
+
+        const half = this.cellSize / 2;
+        const inset = 2;  // 内缩一点避免被边缘裁切
+        g.roundRect(-half + inset, -half + inset, this.cellSize - inset * 2, this.cellSize - inset * 2, 8);
+        g.stroke();
+
+        sel.setPosition(0, 0, 0);
+        sel.active = true;
+    }
+
+
     /** 刷新格子显示 */
     refresh() {
         const bridge = this._bridge;
@@ -250,6 +316,22 @@ export class InventoryPanelView extends Component {
                 if (c.name) c.name.string = '';
                 c.count.string = '';
             }
+
+            // === 根据“手上物品 id”决定高亮哪个格子 ===
+            let selIdx = -1;
+            const heldId = this._getHeldItemId();
+            if (heldId) {
+                const slots: Array<Slot | null> = (this._bridge?.inventory?.slots) as any;
+                if (Array.isArray(slots)) {
+                    const capacity = Math.min(this._cells.length, slots.length);
+                    for (let i = 0; i < capacity; i++) {
+                        const s = slots[i];
+                        if (s && s.id === heldId && s.count > 0) { selIdx = i; break; }
+                    }
+                }
+            }
+            this._updateSelection(selIdx);
+
             return;
         }
 
@@ -289,5 +371,23 @@ export class InventoryPanelView extends Component {
             if (cell.name) cell.name.string = '';
             cell.count.string = '';
         }
+
+        // === 根据“手上物品 id”决定高亮哪个格子（正常刷新时也要执行）===
+        let selIdx = -1;
+        const heldId = this._getHeldItemId();
+        if (heldId) {
+            const slots2: Array<Slot | null> = (this._bridge?.inventory?.slots) as any;
+            if (Array.isArray(slots2)) {
+                const capacity2 = Math.min(this._cells.length, slots2.length);
+                for (let i = 0; i < capacity2; i++) {
+                    const s = slots2[i];
+                    if (s && s.id === heldId && s.count > 0) { selIdx = i; break; }
+                }
+            }
+        }
+        this._updateSelection(selIdx);
+
     }
+
+
 }
