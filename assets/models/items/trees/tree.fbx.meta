@@ -21,15 +21,15 @@
       ],
       "subMetas": {}
     },
-    "ec831": {
+    "e10e4": {
       "importer": "gltf-mesh",
-      "uuid": "bfd519e4-028a-449b-b230-4b1b006849a5@ec831",
+      "uuid": "bfd519e4-028a-449b-b230-4b1b006849a5@e10e4",
       "displayName": "",
-      "id": "ec831",
-      "name": "tripo_mesh_aa578899.mesh",
+      "id": "e10e4",
+      "name": "立方体.mesh",
       "userData": {
         "gltfIndex": 0,
-        "triangleCount": 5978
+        "triangleCount": 5990
       },
       "ver": "1.1.1",
       "imported": true,
@@ -48,14 +48,14 @@
       "userData": {
         "gltfIndex": 0,
         "fixAlphaTransparencyArtifacts": true,
-        "hasAlpha": false,
+        "hasAlpha": true,
         "type": "texture"
       },
       "ver": "1.0.3",
       "imported": true,
       "files": [
-        ".jpg",
-        ".json"
+        ".json",
+        ".png"
       ],
       "subMetas": {}
     },
@@ -129,7 +129,7 @@
     },
     "assetFinder": {
       "meshes": [
-        "bfd519e4-028a-449b-b230-4b1b006849a5@ec831"
+        "bfd519e4-028a-449b-b230-4b1b006849a5@e10e4"
       ],
       "skeletons": [],
       "textures": [
