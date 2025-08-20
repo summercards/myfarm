@@ -1,6 +1,7 @@
 import { _decorator, Component, SpriteFrame, Prefab, Enum } from 'cc';
 import { ItemCategory } from './ItemCategory';
 import { ItemActionType } from './ItemActionType';
+import { PlantingDef } from './data/PlantingDefs';
 const { ccclass, property } = _decorator;
 
 /**
@@ -14,6 +15,10 @@ export class ItemData extends Component {
 
   @property
   displayName: string = '苹果';
+
+    @property({ type: PlantingDef, tooltip: '（可选）种植配置' })
+    plant: PlantingDef = new PlantingDef();
+
 
   @property({ type: SpriteFrame })
   icon: SpriteFrame | null = null;

@@ -25,13 +25,13 @@
       }
     ],
     "_prefab": {
-      "__id__": 4
+      "__id__": 7
     },
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": 0,
-      "z": 0
+      "y": 0.172,
+      "z": -1.487
     },
     "_lrot": {
       "__type__": "cc.Quat",
@@ -70,7 +70,13 @@
     },
     "id": "apple",
     "displayName": "苹果",
-    "icon": null,
+    "plant": {
+      "__id__": 4
+    },
+    "icon": {
+      "__uuid__": "24c419ea-63a8-4ea1-a9d0-7fc469489bbc@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
     "worldModel": {
       "__uuid__": "e2bae89c-b399-4d1f-8034-643455202c2d",
       "__expectedType__": "cc.Prefab"
@@ -87,6 +93,41 @@
   {
     "__type__": "cc.CompPrefabInfo",
     "fileId": "58FES3xTROcLZanai4QKfQ"
+  },
+  {
+    "__type__": "PlantingDef",
+    "plantable": true,
+    "stages": [
+      {
+        "__id__": 5
+      },
+      {
+        "__id__": 6
+      }
+    ],
+    "yieldItemId": "",
+    "yieldCount": 1,
+    "dropHeight": 0.1
+  },
+  {
+    "__type__": "PlantStageDef",
+    "prefab": {
+      "__uuid__": "04a395ab-c938-410f-8671-d5e587da952b",
+      "__expectedType__": "cc.Prefab"
+    },
+    "duration": 5,
+    "scale": 1,
+    "offsetY": 0
+  },
+  {
+    "__type__": "PlantStageDef",
+    "prefab": {
+      "__uuid__": "65a111a2-1d04-4694-9ed3-2e6dc13e8955",
+      "__expectedType__": "cc.Prefab"
+    },
+    "duration": 5,
+    "scale": 1,
+    "offsetY": 0
   },
   {
     "__type__": "cc.PrefabInfo",
