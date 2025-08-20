@@ -97,6 +97,15 @@
   {
     "__type__": "PlantingDef",
     "plantable": true,
+    "treePrefab": {
+      "__uuid__": "3a16a866-e10d-42f7-bddd-9073f7f11ed1",
+      "__expectedType__": "cc.Prefab"
+    },
+    "growSeconds": 6,
+    "startScale": 0.4,
+    "targetScale": 1,
+    "interactRadius": 1,
+    "yieldCount": 1,
     "stages": [
       {
         "__id__": 5
@@ -104,10 +113,7 @@
       {
         "__id__": 6
       }
-    ],
-    "yieldItemId": "",
-    "yieldCount": 1,
-    "dropHeight": 0.1
+    ]
   },
   {
     "__type__": "PlantStageDef",

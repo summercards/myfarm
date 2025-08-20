@@ -1,6 +1,6 @@
 /*  scrpits/farming/PlantingSystem.ts
  *  Cocos Creator 3.8.6
- *  - 在玩家前方地面种下作物：立刻生成“树外观 prefab”，后续生长/采集由 PlantedCrop 处理
+ *  - 在玩家前方地面种下作物：立刻生成“树外观 prefab”，生长/采集由 PlantedCrop 处理
  */
 import {
     _decorator, Component, Node, Vec3, geometry, PhysicsSystem, Prefab
@@ -21,7 +21,7 @@ export class PlantingSystem extends Component {
     @property({ type: Node, tooltip: 'GameRoot（挂有 ItemDatabase）' })
     itemDBNode: Node | null = null;
 
-    @property({ type: Prefab, tooltip: '树外观 Prefab（种下后显示/成长的模型）' })
+    @property({ type: Prefab, tooltip: '默认树外观（若 ItemData 未配置 treePrefab 时使用）' })
     defaultTreePrefab: Prefab | null = null;
 
     @property({ tooltip: '允许种植的物品 id 列表，逗号分隔（例：apple,banana）' })
@@ -30,7 +30,7 @@ export class PlantingSystem extends Component {
     @property({ tooltip: '种植距离（从玩家前方多远落点）' })
     plantDistance = 1.2;
 
-    /** 从 ItemDatabase 读取种植配置，仅用于“是否可种”的检查（勾选了 plantable） */
+    /** 读取 ItemData.plant（只要用来判断 plantable，并取出每个物品的树/时长等配置） */
     private _getPlantDef(id: string): PlantingDef | null {
         const db: any = this.itemDBNode?.getComponent('ItemDatabase');
         if (!db) return null;
@@ -50,11 +50,11 @@ export class PlantingSystem extends Component {
     public tryPlant(id: string): boolean {
         if (!id) return false;
 
-        // 1) 校验：是否允许种
+        // 1) 校验并取出该物品的 PlantingDef
         const def = this._getPlantDef(id);
         if (!def) return false; // 未配置或未勾选 plantable → 不能种
 
-        // 2) 计算玩家前方落点（向下射线）
+        // 2) 计算落点（向下射线）
         const owner = this.invBridgeNode ?? this.node;   // 用玩家节点计算前向
         owner.getWorldPosition(TMP);
         FWD.set(0, 0, -1);
@@ -72,7 +72,6 @@ export class PlantingSystem extends Component {
 
         let hitPos = new Vec3(origin.x, origin.y - 0.5, origin.z);
         const hit = PhysicsSystem.instance.raycastClosest(RAY, 0xffffffff, 2.0, true);
-        // 3.8: raycastClosestResult.hitPoint 可用
         // @ts-ignore
         const res = (PhysicsSystem.instance as any).raycastClosestResult;
         if (hit && res && res.hitPoint) hitPos = res.hitPoint.clone();
@@ -84,7 +83,7 @@ export class PlantingSystem extends Component {
         cropNode.setRotationFromEuler(0, 0, 0);
         console.log('[PlantingSystem] plant', id, 'at', hitPos);
 
-        // 4) 取“手上当前可见”的节点，作为掉落模板的兜底
+        // 4) 取“手上当前可见”的节点，作为掉落模板兜底
         let handActive: Node | null = null;
         const playerCtrl: any = (this.invBridgeNode ?? this.node).getComponent('TPSCharacterController');
         if (playerCtrl && playerCtrl.hand) {
@@ -93,10 +92,19 @@ export class PlantingSystem extends Component {
             }
         }
 
-        // 5) 初始化 PlantedCrop：树外观 + 掉落水果 id +（可选）掉落模板 + DB 节点
+        // 5) 初始化 PlantedCrop，并把“每个物品的生长参数”先写进去
         const crop = cropNode.addComponent(PlantedCrop);
+
+        // —— 先把 per-item 参数写到组件上（spawn 前写，碰撞半径等会用到）——
+        if (typeof def.growSeconds === 'number') crop.growSeconds = def.growSeconds;
+        if (typeof def.startScale === 'number') crop.startScale = def.startScale;
+        if (typeof def.targetScale === 'number') crop.targetScale = def.targetScale;
+        if (typeof def.interactRadius === 'number') crop.interactRadius = def.interactRadius;
+        if (typeof def.yieldCount === 'number') crop.yieldCount = def.yieldCount;
+
+        // —— 再调用 setup，传入该物品的“树外观 prefab”（没有就回退默认）——
         crop.setup({
-            treePrefab: this.defaultTreePrefab,
+            treePrefab: def.treePrefab ?? this.defaultTreePrefab,
             itemId: id,
             itemDBNode: this.itemDBNode,
             fallbackDropTemplate: handActive
