@@ -60,15 +60,12 @@
       },
       {
         "__id__": 113
-      },
-      {
-        "__id__": 121
       }
     ],
     "_active": true,
     "_components": [],
     "_prefab": {
-      "__id__": 124
+      "__id__": 121
     },
     "_lpos": {
       "__type__": "cc.Vec3",
@@ -99,7 +96,7 @@
     },
     "autoReleaseAssets": false,
     "_globals": {
-      "__id__": 129
+      "__id__": 126
     },
     "_id": "a39b906a-c484-4b38-bc26-75dd349f1e67"
   },
@@ -1481,7 +1478,7 @@
     "node": {
       "__id__": 40
     },
-    "_enabled": true,
+    "_enabled": false,
     "__prefab": null,
     "plantSys": {
       "__id__": 56
@@ -1502,9 +1499,14 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "plantSys": null,
-    "ringPrefab": null,
-    "ringDiameter": 0.6,
+    "plantSys": {
+      "__id__": 56
+    },
+    "ringPrefab": {
+      "__uuid__": "c24f4bc3-101b-4ee4-8fe1-11752de9b678",
+      "__expectedType__": "cc.Prefab"
+    },
+    "ringDiameter": 0.01,
     "lift": 0.01,
     "alignToGroundNormal": true,
     "_id": "d2cHUXTXJGLrr3BeJtM1rV"
@@ -2696,106 +2698,6 @@
     }
   },
   {
-    "__type__": "cc.Node",
-    "_name": "tager",
-    "_objFlags": 0,
-    "__editorExtras__": {},
-    "_parent": {
-      "__id__": 1
-    },
-    "_children": [],
-    "_active": true,
-    "_components": [
-      {
-        "__id__": 122
-      }
-    ],
-    "_prefab": null,
-    "_lpos": {
-      "__type__": "cc.Vec3",
-      "x": 0,
-      "y": 0.32,
-      "z": 0
-    },
-    "_lrot": {
-      "__type__": "cc.Quat",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "w": 1
-    },
-    "_lscale": {
-      "__type__": "cc.Vec3",
-      "x": 0.26,
-      "y": 0.26,
-      "z": 0.26
-    },
-    "_mobility": 0,
-    "_layer": 1073741824,
-    "_euler": {
-      "__type__": "cc.Vec3",
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "_id": "ecw7f6EGtKFY+qN2ksBbMg"
-  },
-  {
-    "__type__": "cc.MeshRenderer",
-    "_name": "Plane<ModelComponent>",
-    "_objFlags": 0,
-    "__editorExtras__": {},
-    "node": {
-      "__id__": 121
-    },
-    "_enabled": true,
-    "__prefab": null,
-    "_materials": [
-      {
-        "__uuid__": "a50dd396-407e-4e9e-bd5e-4787eda5ba3c",
-        "__expectedType__": "cc.Material"
-      }
-    ],
-    "_visFlags": 0,
-    "bakeSettings": {
-      "__id__": 123
-    },
-    "_mesh": {
-      "__uuid__": "1263d74c-8167-4928-91a6-4e2672411f47@2e76e",
-      "__expectedType__": "cc.Mesh"
-    },
-    "_shadowCastingMode": 0,
-    "_shadowReceivingMode": 1,
-    "_shadowBias": 0,
-    "_shadowNormalBias": 0,
-    "_reflectionProbeId": -1,
-    "_reflectionProbeBlendId": -1,
-    "_reflectionProbeBlendWeight": 0,
-    "_enabledGlobalStandardSkinObject": false,
-    "_enableMorph": true,
-    "_id": "01Hizvrs9DPK55EPWwNa/8"
-  },
-  {
-    "__type__": "cc.ModelBakeSettings",
-    "texture": null,
-    "uvParam": {
-      "__type__": "cc.Vec4",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "w": 0
-    },
-    "_bakeable": false,
-    "_castShadow": false,
-    "_receiveShadow": false,
-    "_recieveShadow": false,
-    "_lightmapSize": 64,
-    "_useLightProbe": false,
-    "_bakeToLightProbe": true,
-    "_reflectionProbeType": 0,
-    "_bakeToReflectionProbe": true
-  },
-  {
     "__type__": "cc.PrefabInfo",
     "root": null,
     "asset": null,
@@ -2803,10 +2705,10 @@
     "instance": null,
     "targetOverrides": [
       {
-        "__id__": 125
+        "__id__": 122
       },
       {
-        "__id__": 127
+        "__id__": 124
       }
     ],
     "nestedPrefabInstanceRoots": [
@@ -2844,7 +2746,7 @@
       "__id__": 73
     },
     "targetInfo": {
-      "__id__": 126
+      "__id__": 123
     }
   },
   {
@@ -2867,7 +2769,7 @@
       "__id__": 89
     },
     "targetInfo": {
-      "__id__": 128
+      "__id__": 125
     }
   },
   {
@@ -2879,28 +2781,28 @@
   {
     "__type__": "cc.SceneGlobals",
     "ambient": {
-      "__id__": 130
+      "__id__": 127
     },
     "shadows": {
-      "__id__": 131
+      "__id__": 128
     },
     "_skybox": {
-      "__id__": 132
+      "__id__": 129
     },
     "fog": {
-      "__id__": 133
+      "__id__": 130
     },
     "octree": {
-      "__id__": 134
+      "__id__": 131
     },
     "skin": {
-      "__id__": 135
+      "__id__": 132
     },
     "lightProbeInfo": {
-      "__id__": 136
+      "__id__": 133
     },
     "postSettings": {
-      "__id__": 137
+      "__id__": 134
     },
     "bakedWithStationaryMainLight": false,
     "bakedWithHighpLightmap": false
