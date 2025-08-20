@@ -42,9 +42,9 @@
     },
     "_lscale": {
       "__type__": "cc.Vec3",
-      "x": 1,
-      "y": 1,
-      "z": 1
+      "x": 4,
+      "y": 4,
+      "z": 4
     },
     "_mobility": 0,
     "_layer": 1073741824,
@@ -78,7 +78,7 @@
       "__expectedType__": "cc.SpriteFrame"
     },
     "worldModel": {
-      "__uuid__": "e2bae89c-b399-4d1f-8034-643455202c2d",
+      "__uuid__": "714dbc53-7514-426b-adf9-47e83b9f274f",
       "__expectedType__": "cc.Prefab"
     },
     "category": 0,
@@ -98,12 +98,12 @@
     "__type__": "PlantingDef",
     "plantable": true,
     "treePrefab": {
-      "__uuid__": "3a16a866-e10d-42f7-bddd-9073f7f11ed1",
+      "__uuid__": "eda04451-d3f5-44b6-8410-4c46d31d46ea",
       "__expectedType__": "cc.Prefab"
     },
     "growSeconds": 6,
     "startScale": 0.4,
-    "targetScale": 1,
+    "targetScale": 3,
     "interactRadius": 1,
     "yieldCount": 1,
     "stages": [
