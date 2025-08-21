@@ -1,109 +1,69 @@
-/*  NPCController.ts
- *  ¹¦ÄÜ£ºNPC µÄ»ù´¡ÒÆ¶¯£¨Õ¾×® / Ñ²Âß£©+ Ãæ³¯·½Ïòµ÷Õû + Óë¶Ô»°Ê±µÄÔÝÍ£
- *  ÊÊÓÃ£ºCocos Creator 3.8.6
+/*  NPCController.tsï¼ˆnpcName ç”¨ CCStringï¼‰
+ *  å·¡é€»/æœå‘/å¯¹è¯æš‚åœï¼Œé€‚é… 3.8.6
  */
-import { _decorator, Component, Node, Vec3, Quat, math } from 'cc';
+import { _decorator, Component, Node, Vec3, Quat, math, CCString } from 'cc';
 const { ccclass, property } = _decorator;
 
-const V_UP = new Vec3(0, 1, 0);
+const V_UP = new Vec3(0,1,0);
 const V_TMP = new Vec3();
 const Q_TMP = new Quat();
 
 @ccclass('NPCController')
 export class NPCController extends Component {
-    /** ÏÔÊ¾Ãû£¨¶Ô»°¿ò±êÌâÓÃ£© */
-    @property
-    public npcName: string = '´åÃñ';
+    @property(CCString)
+    public npcName: string = 'æ‘æ°‘';
 
-    /** ÒÆ¶¯ËÙ¶È£¨Ã×/Ãë£© */
     @property
     public moveSpeed: number = 1.8;
 
-    /** ÊÇ·ñÑ²Âß£¨true£º°´Â·µãÑ­»·£»false£ºÕ¾×®£© */
     @property
     public patrol: boolean = false;
 
-    /** Â·µã£¨°Ñ³¡¾°ÖÐ¿Õ½ÚµãÍÏ½øÀ´£¬»ò¹ÒÔÚ±¾½ÚµãµÄ×Ó½ÚµãÀï£© */
     @property({ type: [Node] })
     public waypoints: Node[] = [];
 
-    /** µ½´ïÃ¿¸öÂ·µãºóµÈ´ýÃëÊýÇø¼ä£¨×îÐ¡¡¢×î´ó£© */
-    @property
-    public waitMin: number = 0.5;
-    @property
-    public waitMax: number = 2.0;
-
-    /** µ½Â·µãÅÐ¶¨¾àÀë£¨Ã×£© */
-    @property
-    public arriveDistance: number = 0.1;
+    @property public waitMin = 0.5;
+    @property public waitMax = 2.0;
+    @property public arriveDistance = 0.1;
 
     private _curIndex = 0;
     private _waitTimer = 0;
     private _isWaiting = false;
-    private _talking = false; // ¶Ô»°ÖÐÊ±ÔÝÍ£ÒÆ¶¯
+    private _talking = false;
+
+    public setTalking(t: boolean) { this._talking = t; }
 
     onEnable() {
-        // ÈôÎ´ÊÖ¶¯Ö¸¶¨Â·µã£¬¶ø°ÑÂ·µã×÷Îª×Ó½Úµã¡°Waypoints/xxx¡±£¬ÕâÀï¿É×Ô¶¯ÊÕ¼¯
-        if (this.waypoints.length === 0) {
-            const wpRoot = this.node.getChildByName('Waypoints');
-            if (wpRoot) {
-                this.waypoints = wpRoot.children.slice();
-            }
-        }
-        // ·ÀÓù£ºÑ²Âßµ«Ã»ÓÐÂ·µã -> ×Ô¶¯¸ÄÎªÕ¾×®
-        if (this.patrol && this.waypoints.length === 0) {
-            this.patrol = false;
-        }
-    }
-
-    /** ¶Ô»°¿ªÊ¼/½áÊøÊ±ÓÉÍâ²¿µ÷ÓÃ£¬ÔÝÍ£»ò»Ö¸´ÒÆ¶¯ */
-    public setTalking(talking: boolean) {
-        this._talking = talking;
+        if (this.patrol && this.waypoints.length === 0) this.patrol = false;
     }
 
     update(dt: number) {
-        if (this._talking) return;         // ¶Ô»°ÖÐ²»ÒÆ¶¯
-        if (!this.patrol) return;          // Õ¾×®Ôò²»ÒÆ¶¯
-        if (this.waypoints.length === 0) return;
+        if (this._talking || !this.patrol || this.waypoints.length === 0) return;
 
         if (this._isWaiting) {
             this._waitTimer -= dt;
-            if (this._waitTimer <= 0) {
-                this._isWaiting = false;
-            }
+            if (this._waitTimer <= 0) this._isWaiting = false;
             return;
         }
 
         const target = this.waypoints[this._curIndex];
         if (!target) return;
 
-        // ³¯Ä¿±êÒÆ¶¯
-        const curPos = this.node.worldPosition;
-        const tarPos = target.worldPosition;
-
-        Vec3.subtract(V_TMP, tarPos, curPos);
+        const cur = this.node.worldPosition;
+        const tar = target.worldPosition;
+        Vec3.subtract(V_TMP, tar, cur);
         const dist = V_TMP.length();
 
         if (dist <= this.arriveDistance) {
-            // µ½´ï£ºÇÐÏÂÒ»¸ö + Ëæ»úµÈ´ý
             this._curIndex = (this._curIndex + 1) % this.waypoints.length;
             this._isWaiting = true;
             this._waitTimer = math.randomRange(this.waitMin, this.waitMax);
             return;
         }
 
-        // µ¥Î»·½Ïò
         V_TMP.normalize();
-
-        // ÒÆ¶¯
         const step = this.moveSpeed * dt;
-        this.node.setWorldPosition(
-            curPos.x + V_TMP.x * step,
-            curPos.y + V_TMP.y * step,
-            curPos.z + V_TMP.z * step,
-        );
-
-        // ³¯Ïòµ÷Õû£¨ÈÆ Y ³¯ÏòÒÆ¶¯·½Ïò£©
+        this.node.setWorldPosition(cur.x + V_TMP.x * step, cur.y + V_TMP.y * step, cur.z + V_TMP.z * step);
         Quat.fromViewUp(Q_TMP, V_TMP, V_UP);
         this.node.setWorldRotation(Q_TMP);
     }
