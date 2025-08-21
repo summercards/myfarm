@@ -30,8 +30,8 @@
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": 0.172,
-      "z": -1.487
+      "y": 0,
+      "z": 0
     },
     "_lrot": {
       "__type__": "cc.Quat",
@@ -78,7 +78,7 @@
       "__expectedType__": "cc.SpriteFrame"
     },
     "worldModel": {
-      "__uuid__": "714dbc53-7514-426b-adf9-47e83b9f274f",
+      "__uuid__": "d1782dbd-db7b-48bb-a157-dcca80e7f903",
       "__expectedType__": "cc.Prefab"
     },
     "category": 0,
@@ -128,7 +128,7 @@
   {
     "__type__": "PlantStageDef",
     "prefab": {
-      "__uuid__": "65a111a2-1d04-4694-9ed3-2e6dc13e8955",
+      "__uuid__": "04a395ab-c938-410f-8671-d5e587da952b",
       "__expectedType__": "cc.Prefab"
     },
     "duration": 5,
