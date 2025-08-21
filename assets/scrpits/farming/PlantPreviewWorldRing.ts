@@ -1,5 +1,5 @@
 /* assets/scripts/farming/PlantPreviewWorldRing.ts
- * 用世界空间的“面片 prefab”做种植预览圈（可被遮挡，贴地对齐法线）
+ * World-space ring preview for planting, visible ONLY when plantable.
  * Cocos Creator 3.8.6
  */
 import {
@@ -7,6 +7,7 @@ import {
     geometry, PhysicsSystem, find, Layers
 } from 'cc';
 import { PlantingSystem } from './PlantingSystem';
+import { PlantingValidator } from './PlantingValidator';
 import { ItemPickup } from '../ItemPickup';
 const { ccclass, property } = _decorator;
 
@@ -15,28 +16,41 @@ const TMP = new Vec3();
 const FWD = new Vec3(0, 0, -1);
 const V_UP = new Vec3(0, 1, 0);
 const V_TMP = new Vec3();
+const Q_TMP = new Quat();
 
 @ccclass('PlantPreviewWorldRing')
 export class PlantPreviewWorldRing extends Component {
-    /** 你的种植系统（用于读取玩家位置、itemDB、距离等） */
-    @property({ type: PlantingSystem }) plantSys: PlantingSystem | null = null;
+    /** Planting system holder (used to read player node, distance, DB, etc.) */
+    @property({ type: PlantingSystem, displayName: 'Plant System' })
+    plantSys: PlantingSystem | null = null;
 
-    /** 圆环面片的 Prefab（带 MeshRenderer+透明圆环贴图的平面，单位尺寸=1） */
-    @property({ type: Prefab }) ringPrefab: Prefab | null = null;
+    /** Ring prefab (a world-space plane with transparent ring texture, unit size = 1) */
+    @property({ type: Prefab, displayName: 'Ring Prefab' })
+    ringPrefab: Prefab | null = null;
 
-    /** 圈直径（米）—— prefab 如果是 1×1 的单位平面，这里填直径即可 */
-    @property ringDiameter = 0.6;
+    /** Ring diameter in meters (for a 1x1 unit plane) */
+    @property({ displayName: 'Ring Diameter (m)' })
+    ringDiameter = 0.6;
 
-    /** 稍微抬离地面，避免 z-fighting（米） */
-    @property lift = 0.01;
+    /** Extra lift to avoid z-fighting (meters) */
+    @property({ displayName: 'Lift (m)' })
+    lift = 0.01;
 
-    /** 是否按照地面法线对齐（斜坡时更贴合；若只想总是“朝上”，关掉即可） */
-    @property alignToGroundNormal = true;
+    /** Align ring to ground normal (true = conform to slope; false = always face up) */
+    @property({ displayName: 'Align To Ground Normal' })
+    alignToGroundNormal = true;
+
+    /** If true, ring is visible only when the spot is plantable */
+    @property({ displayName: 'Only Show When Plantable' })
+    onlyShowWhenPlantable = true;
 
     private _ring: Node | null = null;
 
     onLoad() {
-        if (!this.plantSys) this.plantSys = find('GameRoot')?.getComponent(PlantingSystem) ?? null;
+        // Auto-find PlantingSystem if not set
+        if (!this.plantSys) {
+            this.plantSys = find('GameRoot')?.getComponent(PlantingSystem) ?? null;
+        }
     }
 
     private _ensureRing() {
@@ -51,16 +65,16 @@ export class PlantPreviewWorldRing extends Component {
     update() {
         if (!this.plantSys) return;
 
-        // 1) 手上是否拿着“可种植”的物品？
+        // 1) Get held item id (used both to check "is plantable item" and as seedTag)
         const heldId = this._getHeldItemId();
-        const canPlant = heldId ? this._isPlantable(heldId) : false;
+        const canPlantItem = heldId ? this._isPlantable(heldId) : false;
 
         this._ensureRing();
         if (!this._ring) return;
 
-        if (!canPlant) { this._ring.active = false; return; }
+        if (!canPlantItem) { this._ring.active = false; return; }
 
-        // 2) 计算落点（与 PlantingSystem 相同）
+        // 2) Compute forward drop origin (same as PlantingSystem)
         const owner = this.plantSys.invBridgeNode ?? this.plantSys.node;
         owner.getWorldPosition(TMP);
         FWD.set(0, 0, -1);
@@ -75,9 +89,10 @@ export class PlantPreviewWorldRing extends Component {
         RAY.o.set(origin);
         RAY.d.set(0, -1, 0);
 
+        // Ignore triggers
         let hitPos = new Vec3(origin.x, origin.y - 0.5, origin.z);
         let hitNormal = V_UP;
-        const hit = PhysicsSystem.instance.raycastClosest(RAY, 0xffffffff, 2.0, true);
+        const hit = PhysicsSystem.instance.raycastClosest(RAY, 0xffffffff, 2.0, false);
         // @ts-ignore
         const res = (PhysicsSystem.instance as any).raycastClosestResult;
         if (hit && res) {
@@ -85,33 +100,37 @@ export class PlantPreviewWorldRing extends Component {
             if (res.hitNormal) hitNormal = res.hitNormal.clone().normalize();
         }
 
-        // 3) 位置 + 微抬高
-        hitPos.add3f(hitNormal.x * this.lift, hitNormal.y * this.lift, hitNormal.z * this.lift);
-        this._ring.setWorldPosition(hitPos);
+        // 3) Final validation using PlantingValidator:
+        //    - must hit a PlantingSurface
+        //    - must pass slope/area/tag checks (seedTag = heldId)
+        const check = PlantingValidator.testAt(hitPos, 2.5, heldId || undefined);
 
-        // 4) 旋转（让面片法线对齐地面法线）
+        // Show only when plantable if required
+        const show = this.onlyShowWhenPlantable ? !!check.ok : true;
+        this._ring.active = show;
+        if (!show) return;
+
+        // 4) Place ring at validated position + extra lift along normal
+        const px = check.pos.x + check.normal.x * this.lift;
+        const py = check.pos.y + check.normal.y * this.lift;
+        const pz = check.pos.z + check.normal.z * this.lift;
+        this._ring.setWorldPosition(px, py, pz);
+
+        // 5) Rotation
         if (this.alignToGroundNormal) {
-            // 让“面片的 +Y”对齐地面法线：构造一个不过于接近法线的前向向量
-            const up = hitNormal;
-            // 取一个与 up 不共线的临时前向
-            let view = V_TMP.set(1, 0, 0);
-            if (Math.abs(Vec3.dot(view, up)) > 0.98) view.set(0, 0, 1);
-            // 用 Quat.fromViewUp 构造旋转
-            const q = new Quat();
-            Quat.fromViewUp(q, view, up);
-            this._ring.setWorldRotation(q);
+            PlantingValidator.alignUpToNormal(Q_TMP, check.normal);
+            this._ring.setWorldRotation(Q_TMP);
         } else {
-            this._ring.setRotationFromEuler(90, 0, 0); // 总是朝上（视你的 prefab 法线而定）
+            // If your plane's normal is +Y, keep it facing up
+            this._ring.setRotationFromEuler(90, 0, 0);
         }
 
-        // 5) 缩放（单位平面 1×1 → 直径）
+        // 6) Scale (unit plane -> diameter)
         const s = this.ringDiameter;
         this._ring.setScale(s, s, s);
-
-        this._ring.active = true;
     }
 
-    /** 读取手上物品 id（优先 hand 的激活子节点，其次 _held 兜底） */
+    /** Read held item id: prefer active child under `hand`, fallback to _held */
     private _getHeldItemId(): string | null {
         const player: any = (this.plantSys?.invBridgeNode ?? this.plantSys?.node)?.getComponent('TPSCharacterController');
         if (player && player.hand) {
@@ -128,7 +147,7 @@ export class PlantPreviewWorldRing extends Component {
         return null;
     }
 
-    /** 查询 ItemDatabase：该 id 是否可种植 */
+    /** Query ItemDatabase: is this id plantable (ItemData.plant.plantable = true) */
     private _isPlantable(id: string): boolean {
         const db: any = this.plantSys?.itemDBNode?.getComponent('ItemDatabase');
         if (!db) return false;

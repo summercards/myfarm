@@ -1478,6 +1478,7 @@
     "ringDiameter": 0.6,
     "lift": 0.01,
     "alignToGroundNormal": true,
+    "onlyShowWhenPlantable": true,
     "_id": "7bv+R9TIxLj5oTK74u1cM/"
   },
   {
@@ -1500,6 +1501,7 @@
     "ringDiameter": 0.01,
     "lift": 0.01,
     "alignToGroundNormal": true,
+    "onlyShowWhenPlantable": true,
     "_id": "d2cHUXTXJGLrr3BeJtM1rV"
   },
   {
