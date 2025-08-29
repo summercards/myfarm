@@ -4,6 +4,7 @@ import { ItemCategory } from './ItemCategory';
 import { ItemActionType } from './ItemActionType';
 import { PlantingDef } from './data/PlantingDefs';
 
+
 const { ccclass, property } = _decorator;
 
 @ccclass('ItemData')
@@ -13,6 +14,13 @@ export class ItemData extends Component {
 
     @property
     displayName: string = '苹果';
+
+    @property({ tooltip: '是否允许被出售' })
+canSell: boolean = true;
+
+@property({ tooltip: '出售时每个可获得的金币' })
+sellPrice: number = 0;
+
 
     /** 作物种植配置（嵌套数据；不是组件） */
     @property({ type: PlantingDef, tooltip: '（可选）种植配置' })

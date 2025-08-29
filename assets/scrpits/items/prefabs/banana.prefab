@@ -29,9 +29,9 @@
     },
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": 0.973,
-      "y": 0.172,
-      "z": -0.876
+      "x": 0,
+      "y": 0,
+      "z": 0
     },
     "_lrot": {
       "__type__": "cc.Quat",
@@ -70,6 +70,8 @@
     },
     "id": "banana",
     "displayName": "香蕉",
+    "canSell": true,
+    "sellPrice": 6,
     "plant": {
       "__id__": 4
     },
@@ -97,14 +99,17 @@
   {
     "__type__": "PlantingDef",
     "plantable": true,
+    "treePrefab": null,
+    "growSeconds": 6,
+    "startScale": 0.4,
+    "targetScale": 1,
+    "interactRadius": 1,
+    "yieldCount": 1,
     "stages": [
       {
         "__id__": 5
       }
-    ],
-    "yieldItemId": "",
-    "yieldCount": 1,
-    "dropHeight": 0.1
+    ]
   },
   {
     "__type__": "PlantStageDef",

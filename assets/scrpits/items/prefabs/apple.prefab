@@ -70,6 +70,8 @@
     },
     "id": "apple",
     "displayName": "苹果",
+    "canSell": true,
+    "sellPrice": 5,
     "plant": {
       "__id__": 4
     },
@@ -105,7 +107,7 @@
     "startScale": 0.4,
     "targetScale": 3,
     "interactRadius": 1,
-    "yieldCount": 1,
+    "yieldCount": 2,
     "stages": [
       {
         "__id__": 5
