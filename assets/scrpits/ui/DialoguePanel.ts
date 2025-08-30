@@ -1,8 +1,11 @@
-/*  DialoguePanel.ts
- *  ¹¦ÄÜ£º×î¼òµ¥µÄ¶Ô»°Ãæ°å£¨±êÌâ=NPCÃû£¬ÕıÎÄ=Öğ¾äÏÔÊ¾£¬°´Å¥=ÏÂÒ»¾ä/¹Ø±Õ£©
- *  Ê¹ÓÃ£º³¡¾° Canvas ÏÂ·ÅÒ»¸ö¶Ô»°Ãæ°å½Úµã£¬¹Ò±¾½Å±¾£¬ÍÏÒıÓÃ¡£
+/* assets/scrpits/ui/DialoguePanel.ts
+ * ç®€æ˜“å¯¹è¯é¢æ¿ï¼ˆæ ‡é¢˜=NPCåï¼Œå†…å®¹=å½“å‰å¥ï¼ŒæŒ‰é’®=ä¸‹ä¸€å¥/å…³é—­ + å•†åº—ï¼‰
+ * ä½¿ç”¨ï¼šåœºæ™¯ä¸‹å·²æœ‰ Canvas/DialoguePanel èŠ‚ç‚¹æ—¶ï¼Œç›´æ¥é€šè¿‡ DialoguePanel.instance().open(...)
  */
 import { _decorator, Component, Node, Label, Button, find } from 'cc';
+import { ShopWindow } from './shop/ShopWindow';
+import { ShopContext } from '../npc/ShopContext';
+
 const { ccclass, property } = _decorator;
 
 type OpenArgs = {
@@ -13,25 +16,37 @@ type OpenArgs = {
 
 @ccclass('DialoguePanel')
 export class DialoguePanel extends Component {
-    /** µ¥Àı²éÕÒ£¨Canvas ÏÂ½ÚµãÃûÄ¬ÈÏ "DialoguePanel"£© */
+    /** å•ä¾‹æŸ¥æ‰¾ï¼šä¼˜å…ˆ Canvas/DialoguePanelï¼Œæ‰¾ä¸åˆ°å†å…œåº•ç”¨åç§°æœç´¢ */
     public static instance(): DialoguePanel | null {
-        const n = find('Canvas/DialoguePanel');
+        let n = find('Canvas/DialoguePanel');
+        if (!n) {
+            const canvas = find('Canvas');
+            n = canvas?.getChildByName('DialoguePanel') ?? null;
+        }
         return n?.getComponent(DialoguePanel) ?? null;
     }
 
-    @property(Node) panelRoot: Node | null = null;
+    @property(Node)  panelRoot: Node | null = null;
     @property(Label) speakerLabel: Label | null = null;
     @property(Label) contentLabel: Label | null = null;
     @property(Button) nextBtn: Button | null = null;
+    @property(Button) shopBtn: Button | null = null;   // Inspector é‡ŒæŠŠâ€œå•†åº—â€æŒ‰é’®æ‹–è¿›æ¥
 
     private _lines: string[] = [];
     private _idx = 0;
     private _onClose: (() => void) | null = null;
 
     onLoad() {
+        // è‹¥æœªæŒ‡å®š panelRootï¼Œåˆ™é»˜è®¤ç”¨è„šæœ¬æ‰€åœ¨èŠ‚ç‚¹
+        if (!this.panelRoot) this.panelRoot = this.node;
+
         this._setVisible(false);
+
         if (this.nextBtn) {
             this.nextBtn.node.on(Button.EventType.CLICK, this.onClickNext, this);
+        }
+        if (this.shopBtn) {
+            this.shopBtn.node.on(Button.EventType.CLICK, this.onClickShop, this);
         }
     }
 
@@ -39,19 +54,24 @@ export class DialoguePanel extends Component {
         if (this.nextBtn) {
             this.nextBtn.node.off(Button.EventType.CLICK, this.onClickNext, this);
         }
+        if (this.shopBtn) {
+            this.shopBtn.node.off(Button.EventType.CLICK, this.onClickShop, this);
+        }
     }
 
-    /** ´ò¿ª¶Ô»° */
+    /** æ‰“å¼€å¯¹è¯ */
     public open(args: OpenArgs) {
         this._lines = args.lines ?? [];
         this._idx = 0;
         this._onClose = args.onClose ?? null;
 
         if (this.speakerLabel) this.speakerLabel.string = args.speaker ?? 'NPC';
+
         this._setVisible(true);
         this._refresh();
     }
 
+    /** å…³é—­å¯¹è¯ï¼ˆä¼šè§¦å‘ onClose ä¸€æ¬¡ï¼‰ */
     public close() {
         this._setVisible(false);
         if (this._onClose) {
@@ -61,6 +81,17 @@ export class DialoguePanel extends Component {
         }
     }
 
+    /** å•†åº—æŒ‰é’®ï¼šä½¿ç”¨å½“å‰ NPC ä¸Šä¸‹æ–‡æ‰“å¼€å•†åº— */
+    private onClickShop() {
+        const npc = ShopContext.currentNPC;
+        if (!npc) {
+            console.warn('[DialoguePanel] æ²¡æœ‰å½“å‰ NPC ä¸Šä¸‹æ–‡');
+            return;
+        }
+        ShopWindow.openForNPC(npc); // GameRoot / play ç”± ShopWindow å†…éƒ¨è‡ªåŠ¨æŸ¥æ‰¾
+    }
+
+    /** ä¸‹ä¸€å¥/å…³é—­ */
     public onClickNext() {
         if (this._idx < this._lines.length - 1) {
             this._idx++;
@@ -74,7 +105,7 @@ export class DialoguePanel extends Component {
         if (this.contentLabel) {
             this.contentLabel.string = this._lines[this._idx] ?? '';
         }
-        // °´Å¥ÎÄ°¸¿É¸ù¾İÊÇ·ñ×îºóÒ»¾ä×ÔĞĞ»»£¨¿ÉÑ¡£©
+        // å¦‚éœ€æ ¹æ®çŠ¶æ€éšè—â€œä¸‹ä¸€å¥â€æˆ–â€œå•†åº—â€ï¼Œå¯åœ¨æ­¤å¤„æŒ‰éœ€æ±‚æ§åˆ¶æŒ‰é’®æ˜¾éš
     }
 
     private _setVisible(v: boolean) {
